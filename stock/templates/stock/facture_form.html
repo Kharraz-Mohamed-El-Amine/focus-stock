@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Nouvelle Facture - Focus Quality{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm bg-white">
+            <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+                <div>
+                    <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-currency-dollar text-warning me-2"></i>Saisir une Facture Transporteur</h4>
+                    <small class="text-muted">Enregistrez les factures de transport à rapprocher des trajets</small>
+                </div>
+                <a href="{% url 'stock:facture_list' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Retour à la liste</a>
+            </div>
+
+            <div class="card-body p-4">
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger py-2">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.numero.id_for_label }}" class="form-label fw-semibold">Numéro de Facture <span class="text-danger">*</span></label>
+                            {{ form.numero }}
+                            {% if form.numero.errors %}<div class="text-danger small mt-1">{{ form.numero.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="{{ form.date_facture.id_for_label }}" class="form-label fw-semibold">Date de Facturation <span class="text-danger">*</span></label>
+                            {{ form.date_facture }}
+                            {% if form.date_facture.errors %}<div class="text-danger small mt-1">{{ form.date_facture.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.site.id_for_label }}" class="form-label fw-semibold">Site concerné <span class="text-danger">*</span></label>
+                            {{ form.site }}
+                            {% if form.site.errors %}<div class="text-danger small mt-1">{{ form.site.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.montant.id_for_label }}" class="form-label fw-semibold">Montant Total (MAD) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                {{ form.montant }}
+                                <span class="input-group-text bg-light text-muted">MAD</span>
+                            </div>
+                            {% if form.montant.errors %}<div class="text-danger small mt-1">{{ form.montant.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.nb_trajets_factures.id_for_label }}" class="form-label fw-semibold">Nb trajets facturés</label>
+                            {{ form.nb_trajets_factures }}
+                            <div class="form-text">Déclaré par le transporteur</div>
+                            {% if form.nb_trajets_factures.errors %}<div class="text-danger small mt-1">{{ form.nb_trajets_factures.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-12">
+                            <label for="{{ form.fichier_scan.id_for_label }}" class="form-label fw-semibold">Scan de la Facture (PDF / Image)</label>
+                            {{ form.fichier_scan }}
+                            <div class="form-text">Formats acceptés : PDF, PNG, JPEG. Taille max recommandée : 10 Mo.</div>
+                            {% if form.fichier_scan.errors %}<div class="text-danger small mt-1">{{ form.fichier_scan.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'stock:facture_list' %}" class="btn btn-light border">Annuler</a>
+                        <button type="submit" class="btn btn-warning px-4 fw-semibold text-dark">
+                            <i class="bi bi-check2-circle me-1"></i>Enregistrer la Facture
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

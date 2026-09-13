@@ -1,0 +1,248 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Nouveau Trajet - Focus Quality{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-10 col-lg-11">
+        <div class="card shadow-sm bg-white">
+            <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+                <div>
+                    <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-truck text-warning me-2"></i>Enregistrer un Trajet</h4>
+                    <small class="text-muted">Renseignez la rotation et cochez les mouvements transportés avec leurs quantités</small>
+                </div>
+                <a href="{% url 'stock:trajet_list' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Retour à la liste</a>
+            </div>
+
+            <div class="card-body p-4">
+                <form method="post" id="trajetForm" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <!-- Informations du Trajet -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label for="{{ form.date_trajet.id_for_label }}" class="form-label fw-semibold">Date du trajet <span class="text-danger">*</span></label>
+                            {{ form.date_trajet }}
+                            {% if form.date_trajet.errors %}<div class="text-danger small mt-1">{{ form.date_trajet.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.site.id_for_label }}" class="form-label fw-semibold">Site client destinataire <span class="text-danger">*</span></label>
+                            {{ form.site }}
+                            {% if form.site.errors %}<div class="text-danger small mt-1">{{ form.site.errors }}</div>{% endif %}
+                            <small class="text-muted">Filtre automatiquement les mouvements éligibles ci-dessous.</small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.remarque.id_for_label }}" class="form-label fw-semibold">Remarque / Type de transport</label>
+                            {{ form.remarque }}
+                            {% if form.remarque.errors %}<div class="text-danger small mt-1">{{ form.remarque.errors }}</div>{% endif %}
+                            <small class="text-muted">Ex: TAXI, Scrap, navette urgente, etc.</small>
+                        </div>
+                    </div>
+
+                    <!-- Grille dynamique des Mouvements à transporter -->
+                    <div class="border rounded-3 p-3 bg-light">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                            <div>
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="bi bi-boxes text-primary me-2"></i>Mouvements d'Export à Charger
+                                </h6>
+                                <small class="text-muted">Cochez les pièces chargées dans ce trajet pour renseigner la quantité transportée.</small>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" id="filterPnInput" class="form-control form-control-sm" placeholder="Rechercher par Part Number (PN)...">
+                            </div>
+                        </div>
+
+                        <div class="table-responsive bg-white rounded border" style="max-height: 420px; overflow-y: auto;">
+                            <table class="table table-hover align-middle mb-0" id="tableTrajetMouvements">
+                                <thead class="table-light small sticky-top">
+                                    <tr>
+                                        <th style="width: 40px;" class="text-center">#</th>
+                                        <th>Date</th>
+                                        <th>Site</th>
+                                        <th>Part Number (PN)</th>
+                                        <th>Lot / Batch</th>
+                                        <th class="text-end">Qté Initiale</th>
+                                        <th style="width: 170px;">Qté Transportée <span class="text-danger">*</span></th>
+                                        <th style="width: 120px;">Palettes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mvt in eligible_mouvements %}
+                                    <tr class="trajet-mvt-row" data-site-id="{{ mvt.site_id }}" data-pn="{{ mvt.reference.code_pn|lower }}">
+                                        <td class="text-center">
+                                            <input type="checkbox" name="mouvements" value="{{ mvt.id }}" class="form-check-input trajet-mvt-cb" id="cb_mvt_{{ mvt.id }}">
+                                        </td>
+                                        <td class="small">{{ mvt.date_mouvement|date:"d/m/Y" }}</td>
+                                        <td>
+                                            <span class="badge {% if mvt.site.code == 'TFZ' %}badge-tfz{% else %}badge-toubkal{% endif %}">
+                                                {{ mvt.site.code }}
+                                            </span>
+                                        </td>
+                                        <td class="fw-bold text-primary">{{ mvt.reference.code_pn }}</td>
+                                        <td class="small text-muted">{{ mvt.batch|default:"-" }}</td>
+                                        <td class="text-end fw-semibold text-secondary">{{ mvt.quantite }}</td>
+                                        
+                                        <!-- Champ dynamique Quantité Transportée -->
+                                        <td>
+                                            <div class="qty-field-container" style="display: none;">
+                                                <input type="number" 
+                                                       name="qty_{{ mvt.id }}" 
+                                                       value="{{ mvt.quantite }}" 
+                                                       min="1" 
+                                                       max="{{ mvt.quantite }}" 
+                                                       class="form-control form-control-sm fw-bold text-success border-success qty-input" 
+                                                       disabled>
+                                            </div>
+                                            <span class="text-muted small fst-italic non-selected-hint">Cocher pour saisir</span>
+                                        </td>
+
+                                        <!-- Champ dynamique Palettes Transportées -->
+                                        <td>
+                                            <div class="pal-field-container" style="display: none;">
+                                                <input type="number" 
+                                                       name="pal_{{ mvt.id }}" 
+                                                       value="{{ mvt.nb_palettes|default:'' }}" 
+                                                       min="0" 
+                                                       class="form-control form-control-sm pal-input" 
+                                                       placeholder="Palettes" 
+                                                       disabled>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted py-4">
+                                            Aucun mouvement d'export disponible.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr id="trajetNoMatchingRow" style="display: none;">
+                                        <td colspan="8" class="text-center text-muted py-4">
+                                            Aucun mouvement d'export disponible pour ce site.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-2 d-flex justify-content-between text-muted small">
+                            <span><strong id="trajetSelectedCount" class="text-warning">0</strong> mouvement(s) sélectionné(s) pour ce voyage.</span>
+                            <span class="fst-italic text-secondary">La quantité transportée est modifiable dès la case cochée.</span>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'stock:trajet_list' %}" class="btn btn-light border">Annuler</a>
+                        <button type="submit" class="btn btn-warning px-4 fw-semibold text-dark">
+                            <i class="bi bi-check2-circle me-1"></i>Enregistrer le Trajet
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const siteSelect = document.getElementById('id_site');
+        const rows = document.querySelectorAll('.trajet-mvt-row');
+        const noMatchingRow = document.getElementById('trajetNoMatchingRow');
+        const filterPnInput = document.getElementById('filterPnInput');
+        const countDisplay = document.getElementById('trajetSelectedCount');
+
+        // Met à jour l'affichage des compteurs et l'état des champs
+        function updateRowState(row) {
+            const cb = row.querySelector('.trajet-mvt-cb');
+            const qtyContainer = row.querySelector('.qty-field-container');
+            const palContainer = row.querySelector('.pal-field-container');
+            const hint = row.querySelector('.non-selected-hint');
+            const qtyInput = row.querySelector('.qty-input');
+            const palInput = row.querySelector('.pal-input');
+
+            if (cb && cb.checked) {
+                row.classList.add('table-warning');
+                if (qtyContainer) qtyContainer.style.display = 'block';
+                if (palContainer) palContainer.style.display = 'block';
+                if (hint) hint.style.display = 'none';
+                if (qtyInput) qtyInput.disabled = false;
+                if (palInput) palInput.disabled = false;
+            } else {
+                row.classList.remove('table-warning');
+                if (qtyContainer) qtyContainer.style.display = 'none';
+                if (palContainer) palContainer.style.display = 'none';
+                if (hint) hint.style.display = 'inline';
+                if (qtyInput) qtyInput.disabled = true;
+                if (palInput) palInput.disabled = true;
+            }
+
+            // Calcul du nombre de pièces cochées
+            const checkedCount = document.querySelectorAll('.trajet-mvt-cb:checked').length;
+            if (countDisplay) {
+                countDisplay.textContent = checkedCount;
+            }
+        }
+
+        // Gestion du clic sur chaque checkbox
+        document.querySelectorAll('.trajet-mvt-cb').forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                const row = this.closest('.trajet-mvt-row');
+                if (row) updateRowState(row);
+            });
+        });
+
+        // Filtrage par site et par code PN
+        function filterRows() {
+            const selectedSiteId = siteSelect ? siteSelect.value : '';
+            const pnQuery = filterPnInput ? filterPnInput.value.trim().toLowerCase() : '';
+            let visibleCount = 0;
+
+            rows.forEach(function(row) {
+                const rowSiteId = row.getAttribute('data-site-id');
+                const rowPn = row.getAttribute('data-pn') || '';
+
+                const matchSite = !selectedSiteId || (rowSiteId === selectedSiteId);
+                const matchPn = !pnQuery || (rowPn.indexOf(pnQuery) !== -1);
+
+                if (matchSite && matchPn) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                    // Si masqué par le changement de site, on décoche
+                    const cb = row.querySelector('.trajet-mvt-cb');
+                    if (cb && cb.checked && !matchSite) {
+                        cb.checked = false;
+                        updateRowState(row);
+                    }
+                }
+            });
+
+            if (noMatchingRow) {
+                noMatchingRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+            }
+        }
+
+        if (siteSelect) {
+            siteSelect.addEventListener('change', filterRows);
+        }
+
+        if (filterPnInput) {
+            filterPnInput.addEventListener('input', filterRows);
+        }
+
+        // Initialisation au chargement
+        filterRows();
+    });
+</script>
+{% endblock %}

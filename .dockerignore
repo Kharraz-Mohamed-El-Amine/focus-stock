@@ -1,0 +1,43 @@
+# =============================================================================
+# Docker Ignore - Focus Stock
+# =============================================================================
+
+# Environnements virtuels
+venv/
+.venv/
+env/
+ENV/
+
+# Caches et fichiers compilés Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Base de données locale (montée séparément via volume Docker)
+db.sqlite3
+*.sqlite3
+
+# Fichiers médias / téléversements (montés séparément via volume Docker)
+media/
+
+# Secrets et variables d'environnement locales
+.env
+.env.*
+*.env
+
+# Gestionnaire de versions
+.git/
+.gitignore
+
+# Configuration IDE et OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Documents bureautiques volumineux
+rapport_pfe.docx
+rapport_pfe.md

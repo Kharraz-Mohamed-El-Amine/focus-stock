@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Connexion - Focus Quality{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center my-auto py-5">
+    <div class="col-md-6 col-lg-5 col-xl-4">
+        <div class="card shadow-sm border-0 bg-white">
+            <div class="card-header bg-dark text-white text-center py-4 border-0 rounded-top">
+                <div class="mb-2">
+                    <i class="bi bi-box-seam-fill text-warning display-5"></i>
+                </div>
+                <h4 class="fw-bold mb-0">Focus Quality</h4>
+                <small class="text-light opacity-75">Gestion Stock & Transport | TE Connectivity</small>
+            </div>
+
+            <div class="card-body p-4">
+                <h5 class="fw-bold text-dark text-center mb-4">
+                    <i class="bi bi-shield-lock me-2 text-primary"></i>Authentification
+                </h5>
+
+                {% if form.errors %}
+                    <div class="alert alert-danger py-2 small shadow-sm d-flex align-items-center" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                        <div>Identifiants invalides. Veuillez vérifier votre nom d'utilisateur et mot de passe.</div>
+                    </div>
+                {% endif %}
+
+                <form method="post" action="{% url 'login' %}" novalidate>
+                    {% csrf_token %}
+                    {% if request.GET.next %}
+                        <input type="hidden" name="next" value="{{ request.GET.next }}">
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.username.id_for_label }}" class="form-label fw-semibold small text-muted text-uppercase">
+                            Nom d'utilisateur
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted"><i class="bi bi-person-fill"></i></span>
+                            <input type="text" name="{{ form.username.name }}" id="{{ form.username.id_for_label }}"
+                                   class="form-control {% if form.username.errors %}is-invalid{% endif %}"
+                                   placeholder="Ex: superviseur ou chef_equipe" required autofocus
+                                   value="{{ form.username.value|default:'' }}">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="{{ form.password.id_for_label }}" class="form-label fw-semibold small text-muted text-uppercase">
+                            Mot de passe
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted"><i class="bi bi-key-fill"></i></span>
+                            <input type="password" name="{{ form.password.name }}" id="{{ form.password.id_for_label }}"
+                                   class="form-control {% if form.password.errors %}is-invalid{% endif %}"
+                                   placeholder="Entrez votre mot de passe" required>
+                        </div>
+                    </div>
+
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-primary py-2 fw-semibold shadow-sm">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Se connecter
+                        </button>
+                    </div>
+                </form>
+
+                <div class="border-top pt-3 text-center">
+                    <small class="text-muted d-block mb-1">Comptes de test disponibles :</small>
+                    <span class="badge bg-primary me-1">superviseur</span>
+                    <span class="badge bg-info text-dark">chef_equipe</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

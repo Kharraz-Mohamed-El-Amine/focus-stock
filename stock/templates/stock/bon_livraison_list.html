@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}Bons de Livraison - Focus Quality{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h2 class="fw-bold text-dark mb-1"><i class="bi bi-receipt text-success me-2"></i>Bons de Livraison (BL)</h2>
+        <p class="text-muted mb-0">Justificatifs officiels d'export vers TE Connectivity (triés par date décroissante)</p>
+    </div>
+    <div>
+        {% if user.is_superuser or user.profil.role == 'SUPERVISEUR' %}
+        <a href="{% url 'stock:bon_livraison_create' %}" class="btn btn-success shadow-sm">
+            <i class="bi bi-plus-lg me-1"></i>Créer un Bon de Livraison
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card bg-white shadow-sm">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-dark"><i class="bi bi-list-check me-2"></i>Liste des BL ({{ total_count }} enregistrés)</span>
+        <span class="badge bg-light text-dark border">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase">
+                <tr>
+                    <th>Numéro BL</th>
+                    <th>Date BL</th>
+                    <th>Site</th>
+                    <th class="text-end">Palettes Total</th>
+                    <th class="text-end">Poids Brut (kg)</th>
+                    <th>Mouvements d'export associés</th>
+                    <th class="text-center">Scan</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bl in page_obj %}
+                <tr>
+                    <td class="fw-bold fs-6 text-dark">{{ bl.numero_bl }}</td>
+                    <td>{{ bl.date_bl|date:"d/m/Y" }}</td>
+                    <td>
+                        <span class="badge {% if bl.site.code == 'TFZ' %}badge-tfz{% else %}badge-toubkal{% endif %}">
+                            {{ bl.site.code }}
+                        </span>
+                    </td>
+                    <td class="text-end">{{ bl.nb_palettes_total|default:"-" }}</td>
+                    <td class="text-end fw-semibold">{% if bl.poids_brut %}{{ bl.poids_brut }} kg{% else %}-{% endif %}</td>
+                    <td>
+                        <span class="badge bg-primary rounded-pill me-1">{{ bl.bon_livraison_mouvements.count }} mvt(s)</span>
+                        <div class="small text-muted text-truncate" style="max-width: 350px;">
+                            {% for bl_m in bl.bon_livraison_mouvements.all|slice:":3" %}
+                                <span class="badge bg-light text-dark border">{{ bl_m.mouvement.reference.code_pn }} ({{ bl_m.mouvement.quantite }})</span>
+                            {% endfor %}
+                            {% if bl.bon_livraison_mouvements.count > 3 %}
+                                <span class="text-muted">+ {{ bl.bon_livraison_mouvements.count|add:"-3" }} autres</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="text-center">
+                        {% if bl.fichier_scan %}
+                            <a href="{{ bl.fichier_scan.url }}" target="_blank" class="btn btn-outline-success btn-sm" title="Télécharger le scan">
+                                <i class="bi bi-file-earmark-pdf-fill me-1"></i>Scan
+                            </a>
+                        {% else %}
+                            <span class="text-muted small">Aucun scan</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        <i class="bi bi-receipt fs-1 d-block mb-2 text-secondary"></i>
+                        Aucun bon de livraison enregistré pour le moment.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3">
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page=1">&laquo; Première</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Précédente</a></li>
+                {% endif %}
+                <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Suivante</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Dernière &raquo;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

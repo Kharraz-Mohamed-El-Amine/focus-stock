@@ -1,0 +1,214 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Nouveau Bon de Livraison - Focus Quality{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-10 col-lg-11">
+        <div class="card shadow-sm bg-white">
+            <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+                <div>
+                    <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-receipt text-success me-2"></i>Créer un Bon de Livraison (BL)</h4>
+                    <small class="text-muted">Associez les mouvements d'exportation couverts par ce justificatif</small>
+                </div>
+                <a href="{% url 'stock:bon_livraison_list' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Retour à la liste</a>
+            </div>
+
+            <div class="card-body p-4">
+                <form method="post" enctype="multipart/form-data" id="blForm" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <!-- Informations du BL -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label for="{{ form.numero_bl.id_for_label }}" class="form-label fw-semibold">Numéro BL <span class="text-danger">*</span></label>
+                            {{ form.numero_bl }}
+                            {% if form.numero_bl.errors %}<div class="text-danger small mt-1">{{ form.numero_bl.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.date_bl.id_for_label }}" class="form-label fw-semibold">Date du BL <span class="text-danger">*</span></label>
+                            {{ form.date_bl }}
+                            {% if form.date_bl.errors %}<div class="text-danger small mt-1">{{ form.date_bl.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.site.id_for_label }}" class="form-label fw-semibold">Site de livraison <span class="text-danger">*</span></label>
+                            {{ form.site }}
+                            {% if form.site.errors %}<div class="text-danger small mt-1">{{ form.site.errors }}</div>{% endif %}
+                            <small class="text-muted">Sélectionnez le site pour filtrer les mouvements ci-dessous.</small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.nb_palettes_total.id_for_label }}" class="form-label fw-semibold">Nombre total de palettes</label>
+                            {{ form.nb_palettes_total }}
+                            {% if form.nb_palettes_total.errors %}<div class="text-danger small mt-1">{{ form.nb_palettes_total.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.poids_brut.id_for_label }}" class="form-label fw-semibold">Poids brut (kg)</label>
+                            {{ form.poids_brut }}
+                            {% if form.poids_brut.errors %}<div class="text-danger small mt-1">{{ form.poids_brut.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.fichier_scan.id_for_label }}" class="form-label fw-semibold">Scan du Bon de Livraison (PDF / Image)</label>
+                            {{ form.fichier_scan }}
+                            {% if form.fichier_scan.errors %}<div class="text-danger small mt-1">{{ form.fichier_scan.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Mouvements EXPORT éligibles -->
+                    <div class="border rounded-3 p-3 bg-light">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                            <div>
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="bi bi-box-arrow-up-right text-primary me-2"></i>Mouvements d'Export Éligibles
+                                </h6>
+                                <small class="text-muted">Seuls les exports non encore rattachés à un autre BL sont proposés.</small>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnSelectAll">Tout cocher</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnDeselectAll">Tout décocher</button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive bg-white rounded border" style="max-height: 380px; overflow-y: auto;">
+                            <table class="table table-hover align-middle mb-0" id="tableMouvements">
+                                <thead class="table-light small sticky-top">
+                                    <tr>
+                                        <th style="width: 40px;" class="text-center">#</th>
+                                        <th>Date Export</th>
+                                        <th>Site</th>
+                                        <th>Part Number (PN)</th>
+                                        <th>Lot / Batch</th>
+                                        <th class="text-end">Quantité</th>
+                                        <th class="text-end">Palettes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mvt in eligible_mouvements %}
+                                    <tr class="mvt-row" data-site-id="{{ mvt.site_id }}">
+                                        <td class="text-center">
+                                            <input type="checkbox" name="mouvements" value="{{ mvt.id }}" class="form-check-input mvt-checkbox" id="mvt_{{ mvt.id }}">
+                                        </td>
+                                        <td><label for="mvt_{{ mvt.id }}" class="mb-0 fw-semibold">{{ mvt.date_mouvement|date:"d/m/Y" }}</label></td>
+                                        <td><span class="badge {% if mvt.site.code == 'TFZ' %}badge-tfz{% else %}badge-toubkal{% endif %}">{{ mvt.site.code }}</span></td>
+                                        <td class="fw-bold text-primary">{{ mvt.reference.code_pn }}</td>
+                                        <td class="small">{{ mvt.batch|default:"-" }}</td>
+                                        <td class="text-end fw-bold">{{ mvt.quantite }}</td>
+                                        <td class="text-end">{{ mvt.nb_palettes|default:"-" }}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr id="emptyRow">
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            <i class="bi bi-check-circle fs-3 text-success d-block mb-1"></i>
+                                            Tous les mouvements d'export sont déjà associés à un Bon de Livraison !
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr id="noMatchingRow" style="display: none;">
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            Aucun mouvement d'export disponible pour le site sélectionné.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-2 text-muted small">
+                            <span id="selectedCount" class="fw-semibold text-primary">0</span> mouvement(s) sélectionné(s) pour ce BL.
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'stock:bon_livraison_list' %}" class="btn btn-light border">Annuler</a>
+                        <button type="submit" class="btn btn-success px-4 fw-semibold">
+                            <i class="bi bi-check2-circle me-1"></i>Enregistrer le Bon de Livraison
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const siteSelect = document.getElementById('id_site');
+        const rows = document.querySelectorAll('.mvt-row');
+        const noMatchingRow = document.getElementById('noMatchingRow');
+        const selectedCountEl = document.getElementById('selectedCount');
+        const btnSelectAll = document.getElementById('btnSelectAll');
+        const btnDeselectAll = document.getElementById('btnDeselectAll');
+
+        function updateSelectedCount() {
+            const checkedBoxes = document.querySelectorAll('.mvt-checkbox:checked');
+            if (selectedCountEl) {
+                selectedCountEl.textContent = checkedBoxes.length;
+            }
+        }
+
+        function filterMouvementsBySite() {
+            const selectedSiteId = siteSelect ? siteSelect.value : '';
+            let visibleCount = 0;
+
+            rows.forEach(function(row) {
+                const rowSiteId = row.getAttribute('data-site-id');
+                if (!selectedSiteId || rowSiteId === selectedSiteId) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                    // Décocher si masqué pour éviter d'associer un mouvement d'un autre site
+                    const cb = row.querySelector('.mvt-checkbox');
+                    if (cb) cb.checked = false;
+                }
+            });
+
+            if (noMatchingRow) {
+                noMatchingRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+            }
+            updateSelectedCount();
+        }
+
+        if (siteSelect) {
+            siteSelect.addEventListener('change', filterMouvementsBySite);
+            filterMouvementsBySite();
+        }
+
+        document.querySelectorAll('.mvt-checkbox').forEach(function(cb) {
+            cb.addEventListener('change', updateSelectedCount);
+        });
+
+        if (btnSelectAll) {
+            btnSelectAll.addEventListener('click', function() {
+                rows.forEach(function(row) {
+                    if (row.style.display !== 'none') {
+                        const cb = row.querySelector('.mvt-checkbox');
+                        if (cb) cb.checked = true;
+                    }
+                });
+                updateSelectedCount();
+            });
+        }
+
+        if (btnDeselectAll) {
+            btnDeselectAll.addEventListener('click', function() {
+                rows.forEach(function(row) {
+                    const cb = row.querySelector('.mvt-checkbox');
+                    if (cb) cb.checked = false;
+                });
+                updateSelectedCount();
+            });
+        }
+    });
+</script>
+{% endblock %}

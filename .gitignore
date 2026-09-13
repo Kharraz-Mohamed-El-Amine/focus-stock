@@ -1,0 +1,78 @@
+# =============================================================================
+# .gitignore - Projet Focus Stock & Transport (Focus Quality)
+# =============================================================================
+
+# --- Environnements virtuels ---
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# --- Variables d'environnement & Secrets ---
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# --- Base de données locale ---
+*.sqlite3
+db.sqlite3
+db.sqlite3-journal
+
+# --- Fichiers médias téléversés (scans de BL et de factures) ---
+media/*
+!media/.gitkeep
+
+# --- Fichiers compilés Python & Caches ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Tests & Couverture de code ---
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# --- Fichiers de configuration IDE & Éditeurs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# --- Fichiers système d'exploitation ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# --- Logs et fichiers temporaires ---
+*.log
+*.bak
+*.tmp

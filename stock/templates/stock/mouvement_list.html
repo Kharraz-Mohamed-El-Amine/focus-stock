@@ -1,0 +1,130 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Mouvements de stock - Focus Quality{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h2 class="fw-bold text-dark mb-1"><i class="bi bi-arrow-left-right text-primary me-2"></i>Mouvements de Stock</h2>
+        <p class="text-muted mb-0">Historique complet des réceptions et exports (trié par date décroissante)</p>
+    </div>
+    <div>
+        <a href="{% url 'stock:mouvement_create' %}" class="btn btn-primary shadow-sm">
+            <i class="bi bi-plus-lg me-1"></i>Saisir un Mouvement
+        </a>
+    </div>
+</div>
+
+<!-- Filtres de recherche -->
+<div class="card mb-4 bg-white">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Site</label>
+                <select name="site" class="form-select form-select-sm">
+                    <option value="">Tous les sites</option>
+                    {% for s in sites %}
+                        <option value="{{ s.id }}" {% if current_site == s.id|stringformat:"i" %}selected{% endif %}>{{ s.code }} - {{ s.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Type de mouvement</label>
+                <select name="type" class="form-select form-select-sm">
+                    <option value="">Tous les types</option>
+                    <option value="RECEPTION" {% if current_type == 'RECEPTION' %}selected{% endif %}>RÉCEPTION</option>
+                    <option value="EXPORT" {% if current_type == 'EXPORT' %}selected{% endif %}>EXPORT</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold">Recherche (Part Number / Lot)</label>
+                <input type="text" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="Ex: 927366-1">
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-dark btn-sm w-100"><i class="bi bi-filter me-1"></i>Filtrer</button>
+                {% if current_site or current_type or search_query %}
+                    <a href="{% url 'stock:mouvement_list' %}" class="btn btn-outline-secondary btn-sm" title="Réinitialiser"><i class="bi bi-x-lg"></i></a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tableau des Mouvements -->
+<div class="card bg-white shadow-sm">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-dark"><i class="bi bi-list-ul me-2"></i>Résultats ({{ total_count }} mouvements)</span>
+        <span class="badge bg-light text-dark border">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase">
+                <tr>
+                    <th>Date Mvt</th>
+                    <th>Type</th>
+                    <th>Site</th>
+                    <th>Part Number (PN)</th>
+                    <th>Désignation</th>
+                    <th>Lot / Batch</th>
+                    <th class="text-end">Quantité</th>
+                    <th class="text-end">Palettes</th>
+                    <th class="text-center">Saisi le</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mvt in page_obj %}
+                <tr>
+                    <td class="fw-semibold">{{ mvt.date_mouvement|date:"d/m/Y" }}</td>
+                    <td>
+                        {% if mvt.type_mouvement == 'RECEPTION' %}
+                            <span class="badge badge-reception"><i class="bi bi-box-arrow-in-down me-1"></i>RÉCEPTION</span>
+                        {% else %}
+                            <span class="badge badge-export"><i class="bi bi-box-arrow-up-right me-1"></i>EXPORT</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge {% if mvt.site.code == 'TFZ' %}badge-tfz{% else %}badge-toubkal{% endif %}">
+                            {{ mvt.site.code }}
+                        </span>
+                    </td>
+                    <td class="fw-bold text-primary">{{ mvt.reference.code_pn }}</td>
+                    <td class="small text-muted">{{ mvt.reference.designation|default:"-" }}</td>
+                    <td class="small">{{ mvt.batch|default:"-" }}</td>
+                    <td class="text-end fw-bold fs-6">{{ mvt.quantite }}</td>
+                    <td class="text-end">{{ mvt.nb_palettes|default:"-" }}</td>
+                    <td class="text-center small text-muted">{{ mvt.date_saisie|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-5">
+                        <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                        Aucun mouvement correspondant trouvé.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3">
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page=1{% if current_site %}&site={{ current_site }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}">&laquo; Première</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_site %}&site={{ current_site }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}">Précédente</a></li>
+                {% endif %}
+
+                <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_site %}&site={{ current_site }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}">Suivante</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if current_site %}&site={{ current_site }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}">Dernière &raquo;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

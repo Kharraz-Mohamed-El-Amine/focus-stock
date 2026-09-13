@@ -1,0 +1,5 @@
+django
+openpyxl
+pandas
+python-docx
+gunicorn

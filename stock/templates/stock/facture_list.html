@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block title %}Factures Transporteur - Focus Quality{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h2 class="fw-bold text-dark mb-1"><i class="bi bi-cash-stack text-danger me-2"></i>Factures Transporteur</h2>
+        <p class="text-muted mb-0">Factures reçues du transporteur (triées par date décroissante) pour rapprochement avec les trajets réels</p>
+    </div>
+    <div>
+        {% if user.is_superuser or user.profil.role == 'SUPERVISEUR' %}
+        <a href="{% url 'stock:facture_create' %}" class="btn btn-danger shadow-sm">
+            <i class="bi bi-plus-lg me-1"></i>Enregistrer une Facture
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card bg-white shadow-sm">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-dark"><i class="bi bi-receipt-cutoff me-2"></i>Liste des Factures ({{ total_count }} enregistrées)</span>
+        <span class="badge bg-light text-dark border">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase">
+                <tr>
+                    <th>Numéro Facture</th>
+                    <th>Date Facture</th>
+                    <th>Site Facturé</th>
+                    <th class="text-end">Montant</th>
+                    <th class="text-center">Nb Déclaré</th>
+                    <th>Liaison Trajets</th>
+                    <th class="text-center">Statut</th>
+                    <th class="text-center">Scan</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for facture in page_obj %}
+                <tr>
+                    <td class="fw-bold text-dark fs-6">{{ facture.numero }}</td>
+                    <td>{{ facture.date_facture|date:"d/m/Y" }}</td>
+                    <td>
+                        <span class="badge {% if facture.site.code == 'TFZ' %}badge-tfz{% else %}badge-toubkal{% endif %}">
+                            {{ facture.site.code }}
+                        </span>
+                    </td>
+                    <td class="text-end fw-bold text-danger">
+                        {% if facture.montant %}
+                            {{ facture.montant }} MAD
+                        {% else %}
+                            <span class="text-muted fw-normal">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center fw-semibold text-primary">
+                        {% if facture.nb_trajets_factures is not None %}
+                            {{ facture.nb_trajets_factures }}
+                        {% else %}
+                            <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if facture.rapprochements.exists %}
+                            <span class="badge bg-light text-dark border">
+                                <i class="bi bi-truck me-1 text-primary"></i>{{ facture.rapprochements.count }} trajet(s)
+                            </span>
+                        {% else %}
+                            <span class="text-muted small">0 trajet</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if facture.statut_rapprochement == 'OK' %}
+                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>OK</span>
+                        {% elif facture.statut_rapprochement == 'ECART' %}
+                            <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>ÉCART</span>
+                        {% else %}
+                            <span class="badge bg-secondary"><i class="bi bi-hourglass-split me-1"></i>Non rapproché</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if facture.fichier_scan %}
+                            <a href="{{ facture.fichier_scan.url }}" target="_blank" class="btn btn-outline-danger btn-sm py-0 px-2" title="Télécharger le scan">
+                                <i class="bi bi-file-earmark-pdf-fill"></i>
+                            </a>
+                        {% else %}
+                            <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if user.is_superuser or user.profil.role == 'SUPERVISEUR' %}
+                        <a href="{% url 'stock:rapprochement_detail' facture.id %}" class="btn btn-outline-primary btn-sm py-1 px-2 fw-semibold">
+                            <i class="bi bi-arrow-left-right me-1"></i>Rapprocher
+                        </a>
+                        {% else %}
+                        <span class="text-muted small">Consultation</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-5">
+                        <i class="bi bi-cash fs-1 d-block mb-2 text-secondary"></i>
+                        Aucune facture enregistrée pour le moment.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3">
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page=1">&laquo; Première</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Précédente</a></li>
+                {% endif %}
+                <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Suivante</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Dernière &raquo;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

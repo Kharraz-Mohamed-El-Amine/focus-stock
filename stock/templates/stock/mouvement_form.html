@@ -1,0 +1,80 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Nouveau Mouvement - Focus Quality{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm bg-white">
+            <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+                <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>Saisir un Mouvement de Stock</h4>
+                <a href="{% url 'stock:mouvement_list' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Retour à la liste</a>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger py-2">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.date_mouvement.id_for_label }}" class="form-label fw-semibold">Date du mouvement <span class="text-danger">*</span></label>
+                            {{ form.date_mouvement }}
+                            {% if form.date_mouvement.errors %}<div class="text-danger small mt-1">{{ form.date_mouvement.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="{{ form.type_mouvement.id_for_label }}" class="form-label fw-semibold">Type de mouvement <span class="text-danger">*</span></label>
+                            {{ form.type_mouvement }}
+                            {% if form.type_mouvement.errors %}<div class="text-danger small mt-1">{{ form.type_mouvement.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="{{ form.site.id_for_label }}" class="form-label fw-semibold">Site concerné <span class="text-danger">*</span></label>
+                            {{ form.site }}
+                            {% if form.site.errors %}<div class="text-danger small mt-1">{{ form.site.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="{{ form.reference.id_for_label }}" class="form-label fw-semibold">Référence (Part Number) <span class="text-danger">*</span></label>
+                            {{ form.reference }}
+                            {% if form.reference.errors %}<div class="text-danger small mt-1">{{ form.reference.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.quantite.id_for_label }}" class="form-label fw-semibold">Quantité (unités) <span class="text-danger">*</span></label>
+                            {{ form.quantite }}
+                            {% if form.quantite.errors %}<div class="text-danger small mt-1">{{ form.quantite.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.nb_palettes.id_for_label }}" class="form-label fw-semibold">Nombre de palettes</label>
+                            {{ form.nb_palettes }}
+                            {% if form.nb_palettes.errors %}<div class="text-danger small mt-1">{{ form.nb_palettes.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="{{ form.batch.id_for_label }}" class="form-label fw-semibold">Lot / Batch</label>
+                            {{ form.batch }}
+                            {% if form.batch.errors %}<div class="text-danger small mt-1">{{ form.batch.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'stock:mouvement_list' %}" class="btn btn-light border">Annuler</a>
+                        <button type="submit" class="btn btn-primary px-4 fw-semibold">
+                            <i class="bi bi-check2-circle me-1"></i>Enregistrer le Mouvement
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

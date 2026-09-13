@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Focus Quality - Gestion Stock & Transport{% endblock %}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body {
+            background-color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .navbar-brand {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .main-container {
+            flex: 1;
+        }
+        .card {
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05);
+        }
+        .table-hover tbody tr:hover {
+            background-color: #f1f5f9;
+        }
+        .badge-reception {
+            background-color: #0d9488;
+            color: #ffffff;
+        }
+        .badge-export {
+            background-color: #2563eb;
+            color: #ffffff;
+        }
+        .badge-tfz {
+            background-color: #4f46e5;
+            color: #ffffff;
+        }
+        .badge-toubkal {
+            background-color: #0891b2;
+            color: #ffffff;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <!-- Barre de navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm py-2">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'stock:home' %}">
+                <i class="bi bi-box-seam-fill text-warning fs-4"></i>
+                <span>Focus Quality <small class="text-secondary fw-normal fs-6">| TE Connectivity</small></span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active fw-semibold{% endif %}" href="{% url 'stock:home' %}">
+                            <i class="bi bi-speedometer2 me-1"></i>Tableau de bord
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'mouvement' in request.resolver_match.url_name %}active fw-semibold{% endif %}" href="{% url 'stock:mouvement_list' %}">
+                            <i class="bi bi-arrow-left-right me-1"></i>Mouvements
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'bon_livraison' in request.resolver_match.url_name %}active fw-semibold{% endif %}" href="{% url 'stock:bon_livraison_list' %}">
+                            <i class="bi bi-receipt me-1"></i>Bons de Livraison
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'trajet' in request.resolver_match.url_name %}active fw-semibold{% endif %}" href="{% url 'stock:trajet_list' %}">
+                            <i class="bi bi-truck me-1"></i>Trajets
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'facture' in request.resolver_match.url_name %}active fw-semibold{% endif %}" href="{% url 'stock:facture_list' %}">
+                            <i class="bi bi-cash-stack me-1"></i>Factures
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="d-flex align-items-center gap-2">
+                    {% if user.is_authenticated %}
+                        <!-- Menu actions rapides -->
+                        <div class="dropdown">
+                            <button class="btn btn-warning btn-sm dropdown-toggle fw-semibold" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-plus-circle-fill me-1"></i>Nouveau...
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                                <li><a class="dropdown-item" href="{% url 'stock:mouvement_create' %}"><i class="bi bi-box-arrow-in-down me-2 text-primary"></i>Nouveau Mouvement</a></li>
+                                {% if user.is_superuser or user.profil.role == 'SUPERVISEUR' %}
+                                    <li><a class="dropdown-item" href="{% url 'stock:bon_livraison_create' %}"><i class="bi bi-file-earmark-text me-2 text-success"></i>Nouveau Bon de Livraison</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'stock:trajet_create' %}"><i class="bi bi-truck me-2 text-warning"></i>Nouveau Trajet</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{% url 'stock:facture_create' %}"><i class="bi bi-receipt-cutoff me-2 text-danger"></i>Nouvelle Facture</a></li>
+                                {% endif %}
+                            </ul>
+                        </div>
+
+                        {% if user.is_staff or user.is_superuser %}
+                        <a href="/admin/" target="_blank" class="btn btn-outline-secondary btn-sm text-light border-secondary" title="Administration Django">
+                            <i class="bi bi-shield-lock me-1"></i>Admin
+                        </a>
+                        {% endif %}
+
+                        <!-- Utilisateur et Rôle -->
+                        <div class="d-flex align-items-center ms-2 border-start border-secondary ps-3">
+                            <span class="text-light small me-2 d-none d-md-inline">
+                                <i class="bi bi-person-circle text-warning me-1"></i>
+                                <strong>{{ user.get_full_name|default:user.username }}</strong>
+                                <span class="badge {% if user.is_superuser or user.profil.role == 'SUPERVISEUR' %}bg-primary{% else %}bg-info text-dark{% endif %} ms-1">
+                                    {% if user.is_superuser %}
+                                        Superadmin
+                                    {% elif user.profil %}
+                                        {{ user.profil.get_role_display }}
+                                    {% else %}
+                                        Utilisateur
+                                    {% endif %}
+                                </span>
+                            </span>
+                            <form method="post" action="{% url 'logout' %}" class="d-inline mb-0">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-danger btn-sm py-1" title="Se déconnecter">
+                                    <i class="bi bi-box-arrow-right me-1"></i>Déconnexion
+                                </button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Connexion
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Messages Flash Django -->
+    <div class="container mt-3">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show shadow-sm d-flex align-items-center" role="alert">
+                    <i class="bi {% if message.tags == 'success' %}bi-check-circle-fill text-success{% elif message.tags == 'warning' %}bi-exclamation-triangle-fill text-warning{% else %}bi-info-circle-fill text-primary{% endif %} fs-5 me-2"></i>
+                    <div>{{ message }}</div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Contenu Principal -->
+    <main class="container main-container py-3">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Pied de page -->
+    <footer class="bg-white border-top py-3 text-center text-muted small mt-auto">
+        <div class="container">
+            <span>Focus Quality &copy; 2026 - Digitalisation Stock & Transport | Sites TFZ & TOUBKAL (Client TE Connectivity)</span>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

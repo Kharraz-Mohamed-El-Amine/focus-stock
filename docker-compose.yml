@@ -1,0 +1,16 @@
+services:
+  web:
+    build: .
+    container_name: focus_stock_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistance de la base de données SQLite en dehors du conteneur
+      - ./db.sqlite3:/app/db.sqlite3
+      # Persistance des scans numérisés (Bons de Livraison et Factures)
+      - ./media:/app/media
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1

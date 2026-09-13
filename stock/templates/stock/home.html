@@ -1,0 +1,379 @@
+{% extends 'base.html' %}
+
+{% block title %}Tableau de bord - Focus Quality{% endblock %}
+
+{% block content %}
+<!-- En-tête de la page -->
+<div class="row mb-4 align-items-center">
+    <div class="col-md-7">
+        <h2 class="fw-bold text-dark mb-1">
+            <i class="bi bi-speedometer2 text-primary me-2"></i>Tableau de Bord
+        </h2>
+        <p class="text-muted mb-0">Gestion de stock, suivi des rotations transport & contrôle de facturation — Sites TFZ & TOUBKAL</p>
+    </div>
+    <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex justify-content-md-end gap-2">
+        <a href="{% url 'stock:mouvement_create' %}" class="btn btn-primary shadow-sm">
+            <i class="bi bi-plus-lg me-1"></i>Saisir Mouvement
+        </a>
+        {% if user.is_superuser or user.profil.role == 'SUPERVISEUR' %}
+        <a href="{% url 'stock:trajet_create' %}" class="btn btn-warning shadow-sm fw-semibold">
+            <i class="bi bi-truck me-1"></i>Nouveau Trajet
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 1. Cartes Indicateurs Clés (KPI Cards) -->
+<div class="row g-3 mb-4">
+    <!-- Trajets du mois en cours par site -->
+    <div class="col-md-6 col-xl-3">
+        <div class="card p-3 border-start border-4 border-primary bg-white h-100 shadow-sm">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <span class="text-muted small fw-bold text-uppercase">Trajets du Mois</span>
+                    <div class="text-primary small fw-semibold">{{ mois_courant_nom }}</div>
+                </div>
+                <div class="bg-primary bg-opacity-10 p-2 rounded text-primary">
+                    <i class="bi bi-calendar-check fs-4"></i>
+                </div>
+            </div>
+            <div class="my-1">
+                <span class="display-6 fw-bold text-dark">{{ total_trajets_mois }}</span>
+                <span class="text-muted small">rotation(s)</span>
+            </div>
+            <div class="mt-2 pt-2 border-top">
+                <small class="text-muted d-block mb-1">Détail par site ce mois :</small>
+                <div class="d-flex flex-wrap gap-1">
+                    {% for item in trajets_mois_par_site %}
+                        <span class="badge {% if item.site.code == 'TFZ' %}badge-tfz{% else %}badge-toubkal{% endif %}">
+                            {{ item.site.code }} : <strong>{{ item.nb_trajets }}</strong>
+                        </span>
+                    {% empty %}
+                        <span class="text-muted small">Aucun trajet ce mois</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="mt-auto pt-2 text-end">
+                <a href="{% url 'stock:trajet_list' %}" class="small text-decoration-none">Historique complet &rarr;</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Factures avec statut ECART non résolu -->
+    <div class="col-md-6 col-xl-3">
+        <div class="card p-3 border-start border-4 {% if nb_factures_ecart > 0 %}border-danger bg-danger-subtle{% else %}border-success bg-white{% endif %} h-100 shadow-sm">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <span class="text-muted small fw-bold text-uppercase">Factures en Écart</span>
+                    <div class="text-muted small">Contrôle transporteur</div>
+                </div>
+                <div class="{% if nb_factures_ecart > 0 %}bg-danger bg-opacity-10 text-danger{% else %}bg-success bg-opacity-10 text-success{% endif %} p-2 rounded">
+                    <i class="bi bi-exclamation-octagon fs-4"></i>
+                </div>
+            </div>
+            <div class="my-1">
+                <span class="display-6 fw-bold {% if nb_factures_ecart > 0 %}text-danger{% else %}text-success{% endif %}">{{ nb_factures_ecart }}</span>
+                <span class="text-muted small">facture(s) non résolue(s)</span>
+            </div>
+            <div class="mt-2 pt-2 border-top">
+                {% if nb_factures_ecart > 0 %}
+                    <span class="badge bg-danger text-white">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Écart déclaré vs réel détecté
+                    </span>
+                {% else %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">
+                        <i class="bi bi-check-circle-fill me-1"></i>Toutes les factures sont conformes
+                    </span>
+                {% endif %}
+            </div>
+            <div class="mt-auto pt-2 text-end">
+                <a href="{% url 'stock:facture_list' %}" class="small text-decoration-none">Consulter les factures &rarr;</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trajets orphelins par site (MIS EN ÉVIDENCE !) -->
+    <div class="col-md-6 col-xl-3">
+        <div class="card p-3 border border-2 border-danger bg-white h-100 shadow">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <span class="text-danger small fw-bold text-uppercase">
+                        <i class="bi bi-shield-fill-exclamation me-1"></i>Trajets Orphelins
+                    </span>
+                    <div class="text-muted small">Jamais facturés (toutes dates)</div>
+                </div>
+                <div class="bg-danger text-white p-2 rounded shadow-sm">
+                    <i class="bi bi-question-circle-fill fs-4"></i>
+                </div>
+            </div>
+            <div class="my-1">
+                <span class="display-6 fw-bold text-danger">{{ total_trajets_orphelins }}</span>
+                <span class="text-muted small">trajet(s) orphelin(s)</span>
+            </div>
+            <div class="mt-1">
+                <small class="text-muted d-block mb-1">Répartition par site :</small>
+                <div class="d-flex flex-wrap gap-1">
+                    {% for item in orphelins_par_site %}
+                        <a href="{% url 'stock:trajet_list' %}?orphelin=1&site={{ item.site.code }}"
+                           class="badge {% if item.site.code == 'TFZ' %}badge-tfz{% else %}badge-toubkal{% endif %} text-decoration-none"
+                           title="Filtrer les trajets orphelins de {{ item.site.code }}">
+                            {{ item.site.code }} : <strong>{{ item.nb_orphelins }}</strong>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="mt-auto pt-2">
+                <a href="{% url 'stock:trajet_list' %}?orphelin=1" class="btn btn-danger btn-sm fw-bold w-100 shadow-sm">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>Consulter les trajets orphelins
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mouvements de stock & flux globaux -->
+    <div class="col-md-6 col-xl-3">
+        <div class="card p-3 border-start border-4 border-info bg-white h-100 shadow-sm">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <span class="text-muted small fw-bold text-uppercase">Activité Stock</span>
+                    <div class="text-muted small">Mouvements globaux</div>
+                </div>
+                <div class="bg-info bg-opacity-10 p-2 rounded text-info">
+                    <i class="bi bi-boxes fs-4"></i>
+                </div>
+            </div>
+            <div class="my-1">
+                <span class="display-6 fw-bold text-dark">{{ total_mouvements }}</span>
+                <span class="text-muted small">mouvements</span>
+            </div>
+            <div class="mt-2 pt-2 border-top small">
+                <div class="d-flex justify-content-between text-muted mb-1">
+                    <span><i class="bi bi-arrow-down-left text-success me-1"></i>Réceptions :</span>
+                    <strong class="text-dark">{{ total_receptions }}</strong>
+                </div>
+                <div class="d-flex justify-content-between text-muted">
+                    <span><i class="bi bi-arrow-up-right text-primary me-1"></i>Exports :</span>
+                    <strong class="text-dark">{{ total_exports }}</strong>
+                </div>
+            </div>
+            <div class="mt-auto pt-2 text-end">
+                <a href="{% url 'stock:mouvement_list' %}" class="small text-decoration-none">Tous les mouvements &rarr;</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. Tableau : Stock actuel par référence et par site (total réceptions - total exports) -->
+<div class="card shadow-sm bg-white mb-4">
+    <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h5 class="fw-bold text-dark mb-0">
+                <i class="bi bi-layers-half text-primary me-2"></i>Stock Actuel par Référence et par Site
+            </h5>
+            <small class="text-muted">Calculé en temps réel : <code>Total Réceptions - Total Exports</code></small>
+        </div>
+        <!-- Filtres interactifs (Recherche instantanée et Site) -->
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Filtrer par site">
+                <button type="button" class="btn btn-outline-dark active stock-filter-btn" data-site="ALL">Tous</button>
+                <button type="button" class="btn btn-outline-dark stock-filter-btn" data-site="TFZ">TFZ</button>
+                <button type="button" class="btn btn-outline-dark stock-filter-btn" data-site="TOUBKAL">TOUBKAL</button>
+            </div>
+            <div class="input-group input-group-sm" style="width: 250px;">
+                <span class="input-group-text bg-light border"><i class="bi bi-search"></i></span>
+                <input type="text" id="stockSearchInput" class="form-control" placeholder="Rechercher PN / Référence...">
+            </div>
+            <span class="badge bg-light text-dark border px-2 py-1">
+                <span id="stockVisibleCount">{{ stock_data|length }}</span> référence(s)
+            </span>
+        </div>
+    </div>
+
+    <div class="table-responsive" style="max-height: 440px; overflow-y: auto;">
+        <table class="table table-hover align-middle mb-0" id="stockTable">
+            <thead class="table-light small text-uppercase sticky-top" style="z-index: 1;">
+                <tr>
+                    <th>Part Number (PN)</th>
+                    <th>Désignation</th>
+                    <th>Site</th>
+                    <th class="text-end">Total Réceptions</th>
+                    <th class="text-end">Total Exports</th>
+                    <th class="text-end pe-4">Stock Actuel</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in stock_data %}
+                <tr class="stock-row" data-site="{{ item.site__code }}" data-pn="{{ item.reference__code_pn|lower }}" data-desc="{{ item.reference__designation|lower }}">
+                    <td class="fw-bold text-primary">{{ item.reference__code_pn }}</td>
+                    <td class="small text-muted">{{ item.reference__designation|default:"-" }}</td>
+                    <td>
+                        <span class="badge {% if item.site__code == 'TFZ' %}badge-tfz{% else %}badge-toubkal{% endif %}">
+                            {{ item.site__code }}
+                        </span>
+                    </td>
+                    <td class="text-end fw-semibold text-success">
+                        {% if item.total_receptions > 0 %}
+                            +{{ item.total_receptions }}
+                        {% else %}
+                            <span class="text-muted fw-normal">0</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end fw-semibold text-secondary">
+                        {% if item.total_exports > 0 %}
+                            -{{ item.total_exports }}
+                        {% else %}
+                            <span class="text-muted fw-normal">0</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                        {% if item.stock_actuel > 0 %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle fs-6 fw-bold">
+                                +{{ item.stock_actuel }}
+                            </span>
+                        {% elif item.stock_actuel == 0 %}
+                            <span class="badge bg-light text-muted border fs-6">
+                                0
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-6 fw-bold" title="Stock négatif : Exports supérieurs aux réceptions enregistrées">
+                                {{ item.stock_actuel }}
+                            </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-2 d-block mb-1 text-secondary"></i>
+                        Aucun mouvement de stock enregistré.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 3. Tableau : Les 10 derniers mouvements enregistrés -->
+<div class="card shadow-sm bg-white mb-4">
+    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="fw-bold text-dark mb-0">
+                <i class="bi bi-clock-history text-secondary me-2"></i>10 Derniers Mouvements Enregistrés
+            </h5>
+            <small class="text-muted">Dernières entrées et sorties de stock saisies</small>
+        </div>
+        <a href="{% url 'stock:mouvement_list' %}" class="btn btn-outline-primary btn-sm">
+            Voir tous les mouvements &rarr;
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase">
+                <tr>
+                    <th>Date Mvt</th>
+                    <th>Type</th>
+                    <th>Site</th>
+                    <th>Part Number (PN)</th>
+                    <th>Désignation</th>
+                    <th class="text-end">Quantité</th>
+                    <th class="text-end">Palettes</th>
+                    <th>Lot / Batch</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mvt in derniers_mouvements %}
+                <tr>
+                    <td class="fw-semibold text-dark">{{ mvt.date_mouvement|date:"d/m/Y" }}</td>
+                    <td>
+                        {% if mvt.type_mouvement == 'RECEPTION' %}
+                            <span class="badge badge-reception"><i class="bi bi-box-arrow-in-down me-1"></i>RÉCEPTION</span>
+                        {% else %}
+                            <span class="badge badge-export"><i class="bi bi-box-arrow-up-right me-1"></i>EXPORT</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge {% if mvt.site.code == 'TFZ' %}badge-tfz{% else %}badge-toubkal{% endif %}">
+                            {{ mvt.site.code }}
+                        </span>
+                    </td>
+                    <td class="fw-bold text-primary">{{ mvt.reference.code_pn }}</td>
+                    <td class="small text-muted">{{ mvt.reference.designation|default:"-" }}</td>
+                    <td class="text-end fw-bold">{{ mvt.quantite }}</td>
+                    <td class="text-end">
+                        {% if mvt.nb_palettes %}
+                            {{ mvt.nb_palettes }}
+                        {% else %}
+                            <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if mvt.batch %}
+                            <span class="badge bg-light text-dark border">{{ mvt.batch }}</span>
+                        {% else %}
+                            <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        Aucun mouvement enregistré récemment.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Script simple de filtrage client pour la table des stocks -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('stockSearchInput');
+    const filterButtons = document.querySelectorAll('.stock-filter-btn');
+    const rows = document.querySelectorAll('.stock-row');
+    const visibleCount = document.getElementById('stockVisibleCount');
+
+    let currentSite = 'ALL';
+
+    function applyFilters() {
+        const query = (searchInput ? searchInput.value.toLowerCase().trim() : '');
+        let count = 0;
+
+        rows.forEach(row => {
+            const rowSite = row.getAttribute('data-site');
+            const rowPn = row.getAttribute('data-pn') || '';
+            const rowDesc = row.getAttribute('data-desc') || '';
+
+            const matchesSite = (currentSite === 'ALL' || rowSite === currentSite);
+            const matchesQuery = (!query || rowPn.includes(query) || rowDesc.includes(query));
+
+            if (matchesSite && matchesQuery) {
+                row.style.display = '';
+                count++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        if (visibleCount) {
+            visibleCount.textContent = count;
+        }
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFilters);
+    }
+
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            filterButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentSite = this.getAttribute('data-site');
+            applyFilters();
+        });
+    });
+});
+</script>
+{% endblock %}

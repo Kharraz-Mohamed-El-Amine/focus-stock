@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}Trajets de Transport - Focus Quality{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h2 class="fw-bold text-dark mb-1"><i class="bi bi-truck text-warning me-2"></i>Trajets de Transport</h2>
+        <p class="text-muted mb-0">Rotations et livraisons réelles (Bureau Focus ➔ Site Client), triés par date décroissante</p>
+    </div>
+    <div>
+        {% if user.is_superuser or user.profil.role == 'SUPERVISEUR' %}
+        <a href="{% url 'stock:trajet_create' %}" class="btn btn-warning shadow-sm fw-semibold">
+            <i class="bi bi-plus-lg me-1"></i>Enregistrer un Trajet
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{% if orphelin_filter == '1' %}
+<div class="alert alert-danger d-flex flex-wrap justify-content-between align-items-center mb-4 shadow-sm">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-exclamation-triangle-fill fs-4 text-danger me-3"></i>
+        <div>
+            <strong class="d-block text-danger">Filtrage actif : Trajets orphelins non facturés</strong>
+            <span class="small text-dark">Affichage des trajets réalisés qui ne sont rattachés à aucune facture transporteur.</span>
+        </div>
+    </div>
+    <div class="mt-2 mt-sm-0">
+        <a href="{% url 'stock:trajet_list' %}" class="btn btn-outline-danger btn-sm fw-semibold">
+            <i class="bi bi-x-circle me-1"></i>Réinitialiser le filtre (Voir tous les trajets)
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<div class="card bg-white shadow-sm">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-dark">
+            <i class="bi bi-truck-front me-2"></i>
+            {% if orphelin_filter == '1' %}
+                Trajets Orphelins non facturés ({{ total_count }} trouvés)
+            {% else %}
+                Historique des Trajets ({{ total_count }} enregistrés)
+            {% endif %}
+        </span>
+        <span class="badge bg-light text-dark border">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase">
+                <tr>
+                    <th>Date Trajet</th>
+                    <th>Site Client</th>
+                    <th>Remarque / Mode</th>
+                    <th>Mouvements & Quantités transportées</th>
+                    <th class="text-center">Statut Facture</th>
+                    <th class="text-end">Nb Lignes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trajet in page_obj %}
+                <tr>
+                    <td class="fw-bold text-dark">{{ trajet.date_trajet|date:"d/m/Y" }}</td>
+                    <td>
+                        <span class="badge {% if trajet.site.code == 'TFZ' %}badge-tfz{% else %}badge-toubkal{% endif %}">
+                            {{ trajet.site.code }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if trajet.remarque %}
+                            <span class="badge bg-warning text-dark border border-warning"><i class="bi bi-tag-fill me-1"></i>{{ trajet.remarque }}</span>
+                        {% else %}
+                            <span class="text-muted small">Standard</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for tm in trajet.trajet_mouvements.all|slice:":4" %}
+                                <span class="badge bg-light text-dark border">
+                                    {{ tm.mouvement.reference.code_pn }} : <strong>{{ tm.quantite_transportee }}</strong> pcs
+                                    {% if tm.nb_palettes_transportees %}({{ tm.nb_palettes_transportees }} pal){% endif %}
+                                </span>
+                            {% endfor %}
+                            {% if trajet.trajet_mouvements.count > 4 %}
+                                <span class="badge bg-secondary text-white">+ {{ trajet.trajet_mouvements.count|add:"-4" }} autres</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="text-center">
+                        {% if trajet.rapprochements.exists %}
+                            {% with rap=trajet.rapprochements.first %}
+                                <a href="{% url 'stock:rapprochement_detail' rap.facture.id %}" class="badge bg-success-subtle text-success border border-success-subtle text-decoration-none" title="Rapproché avec facture {{ rap.facture.numero }}">
+                                    <i class="bi bi-check-circle me-1"></i>Facturé ({{ rap.facture.numero }})
+                                </a>
+                            {% endwith %}
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                <i class="bi bi-exclamation-octagon me-1"></i>Orphelin (non facturé)
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end fw-semibold">
+                        {{ trajet.trajet_mouvements.count }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-5">
+                        <i class="bi bi-truck fs-1 d-block mb-2 text-secondary"></i>
+                        {% if orphelin_filter == '1' %}
+                            Aucun trajet orphelin non facturé trouvé.
+                        {% else %}
+                            Aucun trajet enregistré.
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3">
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page=1">&laquo; Première</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Précédente</a></li>
+                {% endif %}
+                <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Suivante</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Dernière &raquo;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

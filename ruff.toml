@@ -1,0 +1,26 @@
+﻿# Configuration Ruff minimale et permissive pour focus_stock
+line-length = 120
+target-version = "py312"
+
+# Exclusions de dossiers
+exclude = [
+    ".git",
+    ".github",
+    ".venv",
+    "venv",
+    "migrations",
+    "__pycache__",
+    "media",
+    "db.sqlite3",
+]
+
+[lint]
+# Sélection de base : Erreurs (E) et Pyflakes (F)
+select = ["E", "F"]
+
+# Règles ignorées pour ne pas bloquer sur le code existant
+ignore = [
+    "E501",  # Longueur de ligne tolérée
+    "F401",  # Imports non utilisés tolérés
+    "F841",  # Variables assignées mais non lues tolérées
+]

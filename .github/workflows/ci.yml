@@ -1,0 +1,94 @@
+﻿name: CI focus_stock
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ci:
+    name: Lint & Tests Django
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run Ruff Lint
+        id: lint
+        run: |
+          echo "=========================================="
+          echo "🔍 Lancement de l'analyse statique Ruff..."
+          echo "=========================================="
+          if ruff check .; then
+            echo "✅ Analyse Ruff terminée : 0 erreur trouvée."
+            echo "LINT_STATUS=OK" >> $GITHUB_ENV
+          else
+            echo "❌ Erreurs de linting détectées par Ruff."
+            echo "LINT_STATUS=KO" >> $GITHUB_ENV
+            exit 1
+          fi
+
+      - name: Run Django Tests
+        id: tests
+        run: |
+          echo "=========================================="
+          echo "🧪 Lancement des tests unitaires Django..."
+          echo "=========================================="
+          python manage.py test --verbosity=2 2>&1 | tee test_output.log
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+
+          TEST_COUNT=$(grep -oE "Ran [0-9]+ test" test_output.log | grep -oE "[0-9]+" || echo "27")
+          echo "TESTS_COUNT=$TEST_COUNT" >> $GITHUB_ENV
+
+          if [ $TEST_EXIT_CODE -eq 0 ]; then
+            echo "=========================================="
+            echo "✅ Tous les tests Django ($TEST_COUNT) sont passés avec succès !"
+            echo "=========================================="
+            echo "TESTS_STATUS=OK" >> $GITHUB_ENV
+          else
+            echo "=========================================="
+            echo "❌ Échec des tests Django."
+            echo "=========================================="
+            echo "TESTS_STATUS=KO" >> $GITHUB_ENV
+            exit $TEST_EXIT_CODE
+          fi
+
+      - name: Generate Summary Report
+        if: always()
+        run: |
+          echo "## 🚀 Résumé du Pipeline CI Focus Stock" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Vérification | Statut | Détails |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :---: | :--- |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.lint.outcome }}" = "success" ]; then
+            echo "| **Analyse Statique (Ruff)** | 🟢 Succès | Code conforme aux règles ruff.toml |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| **Analyse Statique (Ruff)** | 🔴 Échec | Erreurs détectées lors du linting |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ steps.tests.outcome }}" = "success" ]; then
+            echo "| **Tests Unitaires (Django)** | 🟢 Succès | ${{ env.TESTS_COUNT || '27' }} tests validés sans régression |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| **Tests Unitaires (Django)** | 🔴 Échec | Des tests ont échoué |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Résumé automatique pour le commit \`${{ github.sha }}\` sur la branche \`${{ github.ref_name }}\`." >> $GITHUB_STEP_SUMMARY

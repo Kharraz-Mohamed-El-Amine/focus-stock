@@ -1,5 +1,10 @@
 # Focus Stock & Transport - Focus Quality
 
+[![CI focus_stock](https://github.com/Kharraz-Mohamed-El-Amine/focus-stock/actions/workflows/ci.yml/badge.svg)](https://github.com/Kharraz-Mohamed-El-Amine/focus-stock/actions/workflows/ci.yml)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
+[![Django 6.1](https://img.shields.io/badge/django-6.1-green.svg)](https://www.djangoproject.com/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 Application web de gestion des stocks et de contrôle du transport logistique pour le compte du client **TE Connectivity** (sites industriels de **TFZ** et **TOUBKAL** à Tanger).
 
 Développée avec **Django 6.1**, **SQLite 3**, **Bootstrap 5.3 (CDN)** et **JavaScript vanilla** (sans outil de build JS lourd).

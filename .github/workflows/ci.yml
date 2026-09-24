@@ -54,7 +54,7 @@ jobs:
           python manage.py test --verbosity=2 2>&1 | tee test_output.log
           TEST_EXIT_CODE=${PIPESTATUS[0]}
 
-          TEST_COUNT=$(grep -oE "Ran [0-9]+ test" test_output.log | grep -oE "[0-9]+" || echo "27")
+          TEST_COUNT=$(grep -oE "Ran [0-9]+ test" test_output.log | grep -oE "[0-9]+" || echo "?")
           echo "TESTS_COUNT=$TEST_COUNT" >> $GITHUB_ENV
 
           if [ $TEST_EXIT_CODE -eq 0 ]; then
@@ -85,7 +85,7 @@ jobs:
           fi
 
           if [ "${{ steps.tests.outcome }}" = "success" ]; then
-            echo "| **Tests Unitaires (Django)** | 🟢 Succès | ${{ env.TESTS_COUNT || '27' }} tests validés sans régression |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Tests Unitaires (Django)** | 🟢 Succès | ${{ env.TESTS_COUNT }} tests validés sans régression |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| **Tests Unitaires (Django)** | 🔴 Échec | Des tests ont échoué |" >> $GITHUB_STEP_SUMMARY
           fi

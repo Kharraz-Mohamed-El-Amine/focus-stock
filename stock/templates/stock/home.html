@@ -98,9 +98,9 @@
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <div>
                     <span class="text-danger small fw-bold text-uppercase">
-                        <i class="bi bi-shield-fill-exclamation me-1"></i>Trajets Orphelins
+                        <i class="bi bi-shield-fill-exclamation me-1"></i>Trajets sans facture
                     </span>
-                    <div class="text-muted small">Jamais facturés (toutes dates)</div>
+                    <div class="text-muted small">Aucune facture enregistrée (toutes dates)</div>
                 </div>
                 <div class="bg-danger text-white p-2 rounded shadow-sm">
                     <i class="bi bi-question-circle-fill fs-4"></i>
@@ -108,7 +108,7 @@
             </div>
             <div class="my-1">
                 <span class="display-6 fw-bold text-danger">{{ total_trajets_orphelins }}</span>
-                <span class="text-muted small">trajet(s) orphelin(s)</span>
+                <span class="text-muted small">trajet(s) sans facture associée</span>
             </div>
             <div class="mt-1">
                 <small class="text-muted d-block mb-1">Répartition par site :</small>
@@ -116,7 +116,7 @@
                     {% for item in orphelins_par_site %}
                         <a href="{% url 'stock:trajet_list' %}?orphelin=1&site={{ item.site.code }}"
                            class="badge {% if item.site.code == 'TFZ' %}badge-tfz{% else %}badge-toubkal{% endif %} text-decoration-none"
-                           title="Filtrer les trajets orphelins de {{ item.site.code }}">
+                           title="Filtrer les trajets sans facture de {{ item.site.code }}">
                             {{ item.site.code }} : <strong>{{ item.nb_orphelins }}</strong>
                         </a>
                     {% endfor %}
@@ -124,7 +124,7 @@
             </div>
             <div class="mt-auto pt-2">
                 <a href="{% url 'stock:trajet_list' %}?orphelin=1" class="btn btn-danger btn-sm fw-bold w-100 shadow-sm">
-                    <i class="bi bi-box-arrow-up-right me-1"></i>Consulter les trajets orphelins
+                    <i class="bi bi-box-arrow-up-right me-1"></i>Consulter les trajets sans facture
                 </a>
             </div>
         </div>

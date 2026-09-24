@@ -227,14 +227,14 @@
     <div class="card-header bg-warning bg-opacity-10 py-3 border-bottom border-warning d-flex justify-content-between align-items-center">
         <div>
             <h5 class="fw-bold mb-0 text-dark">
-                <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Trajets non facturés (antérieurs au {{ facture.date_facture|date:"d/m/Y" }})
+                <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Trajets sans facture associée (antérieurs au {{ facture.date_facture|date:"d/m/Y" }})
             </h5>
             <small class="text-muted">
-                Trajets du site {{ facture.site.code }} effectués avant la date de cette facture et liés à <strong>AUCUNE facture</strong> (ni celle-ci ni une autre). Permet d'identifier d'éventuels oublis de facturation du transporteur.
+                Trajets du site {{ facture.site.code }} effectués avant la date de cette facture et liés à <strong>AUCUNE facture</strong> (ni celle-ci ni une autre). À confronter aux factures source avant de conclure à un oubli de facturation.
             </small>
         </div>
         <span class="badge bg-warning text-dark fs-6">
-            {{ trajets_non_factures.count }} trajet(s) orphelin(s)
+            {{ trajets_non_factures.count }} trajet(s) sans facture
         </span>
     </div>
 
@@ -284,7 +284,7 @@
                     </td>
                     <td class="text-center">
                         <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
-                            <i class="bi bi-x-circle me-1"></i>Jamais facturé
+                            <i class="bi bi-x-circle me-1"></i>Sans facture
                         </span>
                     </td>
                 </tr>
@@ -292,7 +292,7 @@
                 <tr>
                     <td colspan="7" class="text-center text-muted py-3">
                         <i class="bi bi-check-circle text-success me-1"></i>
-                        Aucun trajet orphelin antérieur non facturé pour le site {{ facture.site.code }}.
+                        Aucun trajet antérieur sans facture associée pour le site {{ facture.site.code }}.
                     </td>
                 </tr>
                 {% endfor %}

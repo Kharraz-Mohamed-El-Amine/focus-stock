@@ -140,6 +140,36 @@ def import_excel_log(
     def get_cell(r: int, c: int) -> Any:
         return merged_values.get((r, c), ws.cell(r, c).value)
 
+    # Cellules de quantité situées sous la première ligne d'une fusion verticale
+    merged_qty_followers = {
+        (r, c)
+        for rng in ws.merged_cells.ranges
+        for r in range(rng.min_row + 1, rng.max_row + 1)
+        for c in range(rng.min_col, rng.max_col + 1)
+        if c in (4, 9)
+    }
+
+    # Colonnes numériques (quantités et palettes) : une cellule fusionnée porte UNE
+    # seule valeur. Elle n'est donc pas recopiée sur les lignes suivantes, sinon une
+    # même quantité serait comptée plusieurs fois.
+    QTY_COLS = (4, 5, 9, 10)
+
+    def get_num(r: int, c: int) -> Any:
+        return ws.cell(r, c).value if c in QTY_COLS else get_cell(r, c)
+
+    def occurrence_is_new(key: tuple, filters: Dict[str, Any]) -> bool:
+        """Idempotence par comptage d'occurrences.
+
+        Deux lignes identiques (même date, site, PN, type et quantité) dans le fichier
+        sont deux mouvements réels distincts. La n-ième occurrence d'une clé n'est créée
+        que si la base en contient moins de n : un ré-import du même fichier (ou d'une
+        version enrichie) ne crée donc aucun doublon, sans perdre de lignes réelles.
+        """
+        occurrences[key] = occurrences.get(key, 0) + 1
+        return Mouvement.objects.filter(**filters).count() < occurrences[key]
+
+    occurrences: Dict[tuple, int] = {}
+
     mouvements_crees = 0
     mouvements_doublons = 0
     receptions_crees = 0
@@ -237,7 +267,7 @@ def import_excel_log(
 
             # --- Traitement RECEIVING ---
             r_pn = clean_pn_value(get_cell(r, 3))
-            r_qty = parse_int_value(get_cell(r, 4))
+            r_qty = parse_int_value(get_num(r, 4))
             if r_pn and r_qty is not None and r_qty > 0:
                 site_code = cur_rec_plant or 'TFZ'
                 site = get_or_create_site_with_warning(site_code, r, avertissements, erreurs)
@@ -250,16 +280,12 @@ def import_excel_log(
                     continue
                 row_had_movement = True
                 reference, _ = Reference.objects.get_or_create(code_pn=r_pn)
-                nb_pal = parse_int_value(get_cell(r, 5))
+                nb_pal = parse_int_value(get_num(r, 5))
 
-                # Vérification de doublon strict
-                if not Mouvement.objects.filter(
-                    date_mouvement=cur_date,
-                    site=site,
-                    reference=reference,
-                    type_mouvement='RECEPTION',
-                    quantite=r_qty,
-                ).exists():
+                # Idempotence par comptage d'occurrences (voir occurrence_is_new)
+                rec_filters = dict(date_mouvement=cur_date, site=site, reference=reference,
+                                   type_mouvement='RECEPTION', quantite=r_qty)
+                if occurrence_is_new(('RECEPTION', cur_date, site.id, reference.id, r_qty), rec_filters):
                     Mouvement.objects.create(
                         date_mouvement=cur_date,
                         site=site,
@@ -275,7 +301,7 @@ def import_excel_log(
 
             # --- Traitement EXPORT ---
             e_pn = clean_pn_value(get_cell(r, 8))
-            e_qty = parse_int_value(get_cell(r, 9))
+            e_qty = parse_int_value(get_num(r, 9))
             if e_pn and e_qty is not None and e_qty > 0:
                 site_code = cur_exp_plant or 'TFZ'
                 site = get_or_create_site_with_warning(site_code, r, avertissements, erreurs)
@@ -288,18 +314,15 @@ def import_excel_log(
                     continue
                 row_had_movement = True
                 reference, _ = Reference.objects.get_or_create(code_pn=e_pn)
-                nb_pal = parse_int_value(get_cell(r, 10))
+                nb_pal = parse_int_value(get_num(r, 10))
 
-                # Vérification de doublon strict
-                existing_mvt = Mouvement.objects.filter(
-                    date_mouvement=cur_date,
-                    site=site,
-                    reference=reference,
-                    type_mouvement='EXPORT',
-                    quantite=e_qty,
-                ).first()
+                # Idempotence par comptage d'occurrences (voir occurrence_is_new)
+                exp_filters = dict(date_mouvement=cur_date, site=site, reference=reference,
+                                   type_mouvement='EXPORT', quantite=e_qty)
+                is_new = occurrence_is_new(('EXPORT', cur_date, site.id, reference.id, e_qty), exp_filters)
 
-                if not existing_mvt:
+                mvt = None
+                if is_new:
                     mvt = Mouvement.objects.create(
                         date_mouvement=cur_date,
                         site=site,
@@ -311,11 +334,12 @@ def import_excel_log(
                     mouvements_crees += 1
                     exports_crees += 1
                 else:
-                    mvt = existing_mvt
+                    # Occurrence déjà importée : elle a été rattachée à son trajet lors du
+                    # premier import, on ne la rattache pas une seconde fois.
                     mouvements_doublons += 1
 
-                # Création / liaison optionnelle du Trajet
-                if create_trajets and cur_trajets:
+                # Création / liaison optionnelle du Trajet (nouveaux mouvements uniquement)
+                if create_trajets and cur_trajets and mvt is not None:
                     trajet, t_created = Trajet.objects.get_or_create(
                         date_trajet=cur_date,
                         site=site,
@@ -335,9 +359,15 @@ def import_excel_log(
 
             if not row_had_movement:
                 # Identification de la cause exacte
-                raw_e_qty = get_cell(r, 9)
-                raw_r_qty = get_cell(r, 4)
-                if raw_e_qty is not None and not e_pn:
+                raw_e_qty = get_num(r, 9)
+                raw_r_qty = get_num(r, 4)
+                if merged_qty_followers.intersection({(r, 4), (r, 9)}) and raw_e_qty is None and raw_r_qty is None:
+                    lignes_ignorees_details.append({
+                        'ligne': r,
+                        'categorie': 'fusion',
+                        'raison': "Suite d'une cellule de quantité fusionnée (quantité déjà comptée sur la première ligne)"
+                    })
+                elif raw_e_qty is not None and not e_pn:
                     lignes_ignorees_details.append({
                         'ligne': r,
                         'categorie': 'donnée invalide',

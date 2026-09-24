@@ -160,6 +160,28 @@ class StockViewsAndFormsTestCase(TestCase):
         self.assertEqual(tm.nb_palettes_transportees, 2)
         self.assertContains(response, "enregistré avec succès (1 mouvement(s) associé(s))")
 
+    def test_trajet_create_refuse_depassement_quantite(self):
+        """La somme des quantités transportées ne peut pas dépasser la quantité exportée."""
+        premier = {
+            'date_trajet': '2026-09-05', 'site': self.site_tfz.id, 'remarque': 'T1',
+            'mouvements': [self.mvt_exp1.id], f'qty_{self.mvt_exp1.id}': '150',
+        }
+        self.client.post(reverse('stock:trajet_create'), data=premier)
+        # Reste à transporter : 200 - 150 = 50 ; une demande de 60 doit être refusée
+        second = {
+            'date_trajet': '2026-09-06', 'site': self.site_tfz.id, 'remarque': 'T2',
+            'mouvements': [self.mvt_exp1.id], f'qty_{self.mvt_exp1.id}': '60',
+        }
+        response = self.client.post(reverse('stock:trajet_create'), data=second)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "reste à transporter 50")
+        self.assertFalse(Trajet.objects.filter(remarque='T2').exists())
+        # Une demande de 50 (reste exact) est acceptée
+        second[f'qty_{self.mvt_exp1.id}'] = '50'
+        self.client.post(reverse('stock:trajet_create'), data=second)
+        total = sum(tm.quantite_transportee for tm in self.mvt_exp1.trajet_mouvements.all())
+        self.assertEqual(total, 200)
+
     # ----------------------------------------------------
     # 4. Tests Facture
     # ----------------------------------------------------
@@ -567,3 +589,56 @@ class AuthenticationAndRoleTestCase(TestCase):
 
 
 
+
+
+class ExcelImportTestCase(TestCase):
+    """Import Excel : lignes identiques réelles, cellules de quantité fusionnées, ré-import."""
+
+    def setUp(self):
+        import os
+        import tempfile
+        import openpyxl
+        Site.objects.create(code='TFZ', nom='TE TFZ')
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'RECEIVING-EXPORT Status'
+        ws['B1'], ws['G1'] = 'RECEIVING', 'EXPORT'
+        ws.append([])
+        ws.append(['Date', 'Plant', 'PN', 'Qty', 'Pal', None, 'Plant', 'PN', 'Qty', 'Pal', None, 'Trajets', None])
+        # Ligne 4-5 : deux exports réels identiques (même PN, même quantité)
+        ws.append([date(2026, 8, 3), 'Without Reception', None, None, None, None, 'TFZ', '111-1', 2400, 1, None, 1, None])
+        ws.append([None, None, None, None, None, None, None, '111-1', 2400, 1, None, None, None])
+        # Lignes 6-8 : UNE quantité fusionnée sur trois lignes (I6:I8) pour un même PN
+        ws.append([None, None, None, None, None, None, None, '222-1', 21600, None, None, None, None])
+        ws.append([None, None, None, None, None, None, None, None, None, None, None, None, None])
+        ws.append([None, None, None, None, None, None, None, None, None, None, None, None, None])
+        ws.merge_cells('A4:A8')
+        ws.merge_cells('G4:G8')
+        ws.merge_cells('L4:L8')
+        ws.merge_cells('H6:H8')
+        ws.merge_cells('I6:I8')
+        fd, self.path = tempfile.mkstemp(suffix='.xlsx')
+        os.close(fd)
+        wb.save(self.path)
+
+    def tearDown(self):
+        import os
+        os.remove(self.path)
+
+    def test_lignes_identiques_conservees_et_fusion_comptee_une_fois(self):
+        from stock.importers.excel_import import import_excel_log
+        res = import_excel_log(self.path)
+        self.assertEqual(res['exports_crees'], 3)
+        self.assertEqual(Mouvement.objects.filter(reference__code_pn='111-1').count(), 2)
+        self.assertEqual(Mouvement.objects.filter(reference__code_pn='222-1').count(), 1)
+        self.assertEqual(sum(Mouvement.objects.values_list('quantite', flat=True)), 2400 * 2 + 21600)
+
+    def test_reimport_idempotent(self):
+        from stock.importers.excel_import import import_excel_log
+        import_excel_log(self.path)
+        res = import_excel_log(self.path)
+        self.assertEqual(res['mouvements_crees'], 0)
+        self.assertEqual(res['mouvements_doublons'], 3)
+        self.assertEqual(Mouvement.objects.count(), 3)
+        # Aucun double rattachement au trajet lors du ré-import
+        self.assertEqual(TrajetMouvement.objects.count(), 3)

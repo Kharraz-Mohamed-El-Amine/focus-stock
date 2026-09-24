@@ -306,19 +306,35 @@ def trajet_create(request):
     if request.method == 'POST':
         form = TrajetForm(request.POST)
         if form.is_valid():
-            trajet = form.save()
-            selected_mvt_ids = request.POST.getlist('mouvements')
-            linked_count = 0
+            # 1. Contrôle des quantités AVANT tout enregistrement : la quantité transportée
+            #    doit être > 0 et ne pas dépasser le reste à transporter du mouvement
+            #    (quantité exportée - quantités déjà affectées à d'autres trajets).
+            lignes = []
+            erreurs_qte = []
+            for mvt_id in request.POST.getlist('mouvements'):
+                mouvement = Mouvement.objects.filter(id=mvt_id, type_mouvement='EXPORT').first()
+                if mouvement is None:
+                    continue
+                raw_qty = request.POST.get(f'qty_{mvt_id}')
+                raw_pal = request.POST.get(f'pal_{mvt_id}')
+                qty = int(raw_qty) if raw_qty and raw_qty.isdigit() else mouvement.quantite
+                pal = int(raw_pal) if raw_pal and raw_pal.isdigit() else mouvement.nb_palettes
+                deja = mouvement.trajet_mouvements.aggregate(t=Sum('quantite_transportee'))['t'] or 0
+                reste = mouvement.quantite - deja
+                if qty <= 0 or qty > reste:
+                    erreurs_qte.append(
+                        f"{mouvement.reference.code_pn} du {mouvement.date_mouvement:%d/%m/%Y} : "
+                        f"{qty} demandé(s), reste à transporter {reste}."
+                    )
+                else:
+                    lignes.append((mouvement, qty, pal))
 
-            for mvt_id in selected_mvt_ids:
-                try:
-                    mouvement = Mouvement.objects.get(id=mvt_id)
-                    raw_qty = request.POST.get(f'qty_{mvt_id}')
-                    raw_pal = request.POST.get(f'pal_{mvt_id}')
-
-                    qty = int(raw_qty) if raw_qty and raw_qty.isdigit() else mouvement.quantite
-                    pal = int(raw_pal) if raw_pal and raw_pal.isdigit() else mouvement.nb_palettes
-
+            if erreurs_qte:
+                for err in erreurs_qte:
+                    messages.error(request, f"Quantité transportée invalide — {err}")
+            else:
+                trajet = form.save()
+                for mouvement, qty, pal in lignes:
                     TrajetMouvement.objects.get_or_create(
                         trajet=trajet,
                         mouvement=mouvement,
@@ -327,17 +343,15 @@ def trajet_create(request):
                             'nb_palettes_transportees': pal,
                         }
                     )
-                    linked_count += 1
-                except Exception:
-                    pass
+                linked_count = len(lignes)
 
-            date_fmt = trajet.date_trajet.strftime('%d/%m/%Y')
-            rem_str = f" ({trajet.remarque})" if trajet.remarque else ""
-            messages.success(
-                request,
-                f"Trajet du {date_fmt} - Site {trajet.site.code}{rem_str} enregistré avec succès ({linked_count} mouvement(s) associé(s))."
-            )
-            return redirect('stock:trajet_list')
+                date_fmt = trajet.date_trajet.strftime('%d/%m/%Y')
+                rem_str = f" ({trajet.remarque})" if trajet.remarque else ""
+                messages.success(
+                    request,
+                    f"Trajet du {date_fmt} - Site {trajet.site.code}{rem_str} enregistré avec succès ({linked_count} mouvement(s) associé(s))."
+                )
+                return redirect('stock:trajet_list')
     else:
         form = TrajetForm()
 
